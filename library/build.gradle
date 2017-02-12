@@ -1,0 +1,83 @@
+apply from: "$rootDir/gradle/common/dependencies.gradle"
+apply from: "$rootDir/gradle/common/kotlin.gradle"
+
+apply plugin: 'org.junit.platform.gradle.plugin'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: 'org.jetbrains.dokka'
+
+junitPlatform {
+    filters {
+        engines {
+            include 'spek'
+        }
+    }
+}
+
+dependencies {
+    compile 'org.apache.avro:avro'
+    compile 'ch.qos.logback:logback-classic'
+    compile 'com.google.guava:guava'
+
+    testCompile 'org.jetbrains.spek:spek-api'
+    testRuntime 'org.jetbrains.spek:spek-junit-platform-engine'
+    testCompile 'com.fasterxml.jackson.module:jackson-module-kotlin'
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.getDestinationDir()
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+task dokkaJavadoc(type: org.jetbrains.dokka.gradle.DokkaTask) {
+    outputFormat = 'javadoc'
+    outputDirectory = "$buildDir/javadoc"
+}
+
+// Create the publication with the pom configuration:
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+
+            groupId 'org.sl.utils.avro'
+            artifactId 'json-avro-converter'
+            version rootProject.version
+
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom.withXml {
+                def root = asNode()
+                root.appendNode('description', 'JSON to Avro converter')
+                root.appendNode('name', 'json-avro-converter')
+                root.appendNode('url', 'https://github.com/slelyuk/json-avro-converter')
+            }
+        }
+    }
+}
+
+bintray {
+    user = "${bintrayUser}"//rootProject.hasProperty('bintrayUser') ? rootProject.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = "${bintrayApiKey}"//rootProject.hasProperty('bintrayApiKey') ? rootProject.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    publications = ['maven']
+    pkg {
+        repo = 'libs-snapshot-local'
+        name = 'json-avro-converter'
+        websiteUrl = 'https://github.com/slelyuk/json-avro-converter'
+        issueTrackerUrl = 'https://github.com/slelyuk/json-avro-converter/issues'
+        vcsUrl = 'https://github.com/slelyuk/json-avro-converter'
+        licenses = ['Apache-2.0']
+        publicDownloadNumbers = true
+        labels = ['json', 'avro', 'converter']
+    }
+}
